@@ -92,19 +92,9 @@ if ($deleteId && verify_csrf($_GET['token'] ?? '')) {
 }
 
 // Get users
-try {
-    $users = get_users();
-    $editingUser = $editingId ? get_user($editingId) : null;
-    $currentUser = current_user();
-} catch (Throwable $e) {
-    error_log('Error loading users page: ' . $e->getMessage());
-    $users = [];
-    $editingUser = null;
-    $currentUser = current_user();
-    if (!$currentUser) {
-        redirect('/admin/login.php');
-    }
-}
+$users = get_users();
+$editingUser = $editingId ? get_user($editingId) : null;
+$currentUser = current_user();
 
 include __DIR__ . '/partials/header.php';
 ?>
@@ -162,7 +152,7 @@ include __DIR__ . '/partials/header.php';
                                 </div>
                             </td>
                             <td>
-                                <span class="badge bg-<?= $user['role'] === 'admin' ? 'danger' : 'primary'; ?>">
+                                <span class="badge bg-<?= $user['role'] === 'admin' ? 'danger' : ($user['role'] === 'editor' ? 'primary' : 'secondary'); ?>">
                                     <?= ucfirst(e($user['role'])); ?>
                                 </span>
                             </td>
@@ -241,6 +231,8 @@ include __DIR__ . '/partials/header.php';
                         <label class="form-label">Role *</label>
                         <select class="form-select" name="role" required>
                             <option value="staff">Staff</option>
+                            <option value="author">Author</option>
+                            <option value="editor">Editor</option>
                             <option value="admin">Admin</option>
                         </select>
                     </div>
@@ -286,6 +278,8 @@ include __DIR__ . '/partials/header.php';
                         <label class="form-label">Role</label>
                         <select class="form-select" name="role" id="editRole">
                             <option value="staff">Staff</option>
+                            <option value="author">Author</option>
+                            <option value="editor">Editor</option>
                             <option value="admin">Admin</option>
                         </select>
                     </div>

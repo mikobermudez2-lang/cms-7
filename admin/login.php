@@ -12,24 +12,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    try {
-        $result = attempt_login($username, $password);
-        
-        if ($result['success']) {
-            // Clear any output buffer before redirect
-            if (ob_get_level()) {
-                ob_end_clean();
-            }
-            redirect('/admin/dashboard.php');
-        }
-        
-        $error = $result['error'] ?? 'Invalid credentials. Please try again.';
-        $locked = $result['locked'] ?? false;
-        $lockoutRemaining = $result['remaining'] ?? 0;
-    } catch (Throwable $e) {
-        error_log('Login error: ' . $e->getMessage());
-        $error = 'An error occurred during login. Please try again.';
+    $result = attempt_login($username, $password);
+    
+    if ($result['success']) {
+        redirect('/admin/dashboard.php');
     }
+    
+    $error = $result['error'] ?? 'Invalid credentials. Please try again.';
+    $locked = $result['locked'] ?? false;
+    $lockoutRemaining = $result['remaining'] ?? 0;
 }
 
 if (current_user()) {
@@ -73,7 +64,7 @@ if (current_user()) {
                         </div>
                     </form>
                     <p class="text-center text-muted mt-4 mb-0">
-                        Default account: admin / admin12345
+                        Default accounts: admin / admin123 &nbsp;|&nbsp; editor / editor123
                     </p>
                 </div>
             </div>

@@ -162,14 +162,6 @@ $isStaff = is_staff();
             justify-content: space-between;
             min-height: var(--topbar-height);
             flex-shrink: 0;
-            text-decoration: none;
-            color: inherit;
-            transition: background-color var(--transition-fast);
-            cursor: pointer;
-        }
-        
-        .sidebar-brand:hover {
-            background-color: var(--sidebar-hover-bg);
         }
         
         .sidebar-brand-content {
@@ -625,16 +617,6 @@ $isStaff = is_staff();
                     </a>
                 </li>
                 <?php endif; ?>
-                <li class="nav-item">
-                    <a class="nav-link" 
-                       href="<?= url('/public/index.php'); ?>" 
-                       target="_blank"
-                       data-tooltip="View Public Site"
-                       aria-label="View Public Site">
-                        <i class="bi bi-globe" aria-hidden="true"></i>
-                        <span>View Site</span>
-                    </a>
-                </li>
             </ul>
             
             <div class="sidebar-footer">

@@ -17,7 +17,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf($_POST['csrf'] ?? '')) {
         $flashError = 'Invalid session.';
     } else {
-        try {
         $postId     = isset($_POST['post_id']) && $_POST['post_id'] !== '' ? trim($_POST['post_id']) : null;
         $title      = trim($_POST['title'] ?? '');
         $slug       = trim($_POST['slug'] ?? '');
@@ -25,26 +24,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $categoryId = !empty($_POST['category_id']) ? trim($_POST['category_id']) : null;
         $status     = in_array($_POST['status'] ?? 'draft', ['draft', 'scheduled', 'published'], true) ? $_POST['status'] : 'draft';
         $scheduledAt = !empty($_POST['scheduled_at']) ? $_POST['scheduled_at'] : null;
-        
-        // Validate category_id if provided
-        if ($categoryId) {
-            try {
-                // Check if categories table exists
-                $tableExists = $db->query("SHOW TABLES LIKE 'categories'")->fetch();
-                if ($tableExists) {
-                    $catCheck = $db->prepare('SELECT id FROM categories WHERE id = ? LIMIT 1');
-                    $catCheck->execute([$categoryId]);
-                    if (!$catCheck->fetch()) {
-                        $categoryId = null; // Invalid category, set to null
-                    }
-                } else {
-                    $categoryId = null; // Categories table doesn't exist
-                }
-            } catch (Throwable $e) {
-                $categoryId = null; // Error checking category, set to null
-                error_log('Category validation error: ' . $e->getMessage());
-            }
-        }
 
         if ($title === '' || $content === '') {
             $flashError = 'Title and content are required.';
@@ -94,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'title'          => $title,
                         'slug'           => $slug,
                         'content'        => $content,
-                        'category_id'    => $categoryId ?: null,
+                        'category_id'    => $categoryId,
                         'status'         => $status,
                         'scheduled_at'   => $status === 'scheduled' ? $scheduledAt : null,
                         'published_at'   => $publishedAt,
@@ -105,20 +84,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     set_flash('Post updated.');
                 } else {
                     $newId = generate_id();
-                    
-                    // Use basic INSERT - only required fields
                     $stmt = $db->prepare(
                         'INSERT INTO posts (id, author_id, title, slug, content, category_id, status, scheduled_at, published_at)
                          VALUES (:id, :author_id, :title, :slug, :content, :category_id, :status, :scheduled_at, :published_at)'
                     );
-                    
                     $stmt->execute([
                         'id'             => $newId,
                         'author_id'      => $user['id'] ?? null,
                         'title'          => $title,
                         'slug'           => $slug,
                         'content'        => $content,
-                        'category_id'    => $categoryId ?: null,
+                        'category_id'    => $categoryId,
                         'status'         => $status,
                         'scheduled_at'   => $status === 'scheduled' ? $scheduledAt : null,
                         'published_at'   => $publishedAt,
@@ -131,15 +107,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect('/admin/posts.php');
             }
         }
-        } catch (PDOException $e) {
-            error_log('Database error in posts.php: ' . $e->getMessage());
-            error_log('SQL State: ' . $e->getCode());
-            $flashError = 'Database error: ' . ($e->getCode() == '23000' ? 'Invalid category or constraint violation.' : 'Please check your database connection.');
-        } catch (Throwable $e) {
-            error_log('Error in posts.php: ' . $e->getMessage());
-            error_log('Stack trace: ' . $e->getTraceAsString());
-            $flashError = 'An error occurred while saving the post. Please try again.';
-        }
     }
 }
 
@@ -149,17 +116,8 @@ if (isset($_GET['archive'])) {
         redirect('/admin/posts.php');
     }
     $archiveId = trim($_GET['archive']);
-    
-    // Get post title before archiving for logging
-    $postStmt = $db->prepare('SELECT title FROM posts WHERE id = ? LIMIT 1');
-    $postStmt->execute([$archiveId]);
-    $post = $postStmt->fetch();
-    $postTitle = $post['title'] ?? 'Unknown Post';
-    
     $stmt = $db->prepare('UPDATE posts SET archived_at = NOW() WHERE id = ? AND archived_at IS NULL');
     $stmt->execute([$archiveId]);
-    
-    log_activity('archive_post', 'post', $archiveId, 'Archived: ' . $postTitle);
     set_flash('Post archived.');
     redirect('/admin/posts.php');
 }
@@ -170,17 +128,8 @@ if (isset($_GET['unarchive'])) {
         redirect('/admin/posts.php');
     }
     $unarchiveId = trim($_GET['unarchive']);
-    
-    // Get post title before unarchiving for logging
-    $postStmt = $db->prepare('SELECT title FROM posts WHERE id = ? LIMIT 1');
-    $postStmt->execute([$unarchiveId]);
-    $post = $postStmt->fetch();
-    $postTitle = $post['title'] ?? 'Unknown Post';
-    
     $stmt = $db->prepare('UPDATE posts SET archived_at = NULL WHERE id = ?');
     $stmt->execute([$unarchiveId]);
-    
-    log_activity('unarchive_post', 'post', $unarchiveId, 'Unarchived: ' . $postTitle);
     set_flash('Post unarchived.');
     redirect('/admin/posts.php');
 }
@@ -190,22 +139,9 @@ if (isset($_GET['delete'])) {
         set_flash('Only administrators can delete posts.', 'danger');
         redirect('/admin/posts.php');
     }
-    if (!verify_csrf($_GET['csrf'] ?? '')) {
-        set_flash('Invalid session.', 'danger');
-        redirect('/admin/posts.php');
-    }
     $deleteId = trim($_GET['delete']);
-    
-    // Get post title before deleting for logging
-    $postStmt = $db->prepare('SELECT title FROM posts WHERE id = ? LIMIT 1');
-    $postStmt->execute([$deleteId]);
-    $post = $postStmt->fetch();
-    $postTitle = $post['title'] ?? 'Unknown Post';
-    
     $stmt = $db->prepare('DELETE FROM posts WHERE id = ?');
     $stmt->execute([$deleteId]);
-    
-    log_activity('delete_post', 'post', $deleteId, 'Deleted: ' . $postTitle);
     set_flash('Post deleted.');
     redirect('/admin/posts.php');
 }
@@ -305,7 +241,7 @@ $flash = get_flash();
                                                     </a>
                                                 <?php endif; ?>
                                                 <?php if (is_admin()): ?>
-                                                    <a class="btn btn-sm btn-outline-danger" href="<?= url('/admin/posts.php?delete=' . urlencode($post['id']) . '&csrf=' . urlencode(csrf_token())); ?>" onclick="return confirm('Delete this post?');" title="Delete">
+                                                    <a class="btn btn-sm btn-outline-danger" href="<?= url('/admin/posts.php?delete=' . urlencode($post['id'])); ?>" onclick="return confirm('Delete this post?');" title="Delete">
                                                         <i class="bi bi-trash"></i>
                                                     </a>
                                                 <?php endif; ?>

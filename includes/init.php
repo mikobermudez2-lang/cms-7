@@ -2,11 +2,6 @@
 
 declare(strict_types=1);
 
-// Start output buffering to prevent headers already sent errors
-if (!ob_get_level()) {
-    ob_start();
-}
-
 // Set timezone to Manila, Philippines
 date_default_timezone_set('Asia/Manila');
 
@@ -23,11 +18,6 @@ require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/language.php';
 require_once __DIR__ . '/categories.php';
 require_once __DIR__ . '/search.php';
-
-// Jobs integration (if enabled)
-if (defined('EXTERNAL_JOBS_ENABLED') && EXTERNAL_JOBS_ENABLED) {
-    require_once __DIR__ . '/jobs_integration.php';
-}
 
 // Optional includes
 if (file_exists(__DIR__ . '/archive_helper.php')) {

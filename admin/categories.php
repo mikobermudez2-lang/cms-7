@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/init.php';
-require_admin_or_staff();
+require_admin_or_editor();
 
 $pageTitle = 'Categories';
 $action = $_GET['action'] ?? 'list';

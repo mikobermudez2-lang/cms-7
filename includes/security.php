@@ -235,60 +235,23 @@ function log_activity(
     ?string $entityId = null,
     ?string $description = null
 ): void {
-    try {
-        $user = current_user();
-        $db = get_db();
-        
-        // Check if activity_logs table exists
-        $tableExists = $db->query("SHOW TABLES LIKE 'activity_logs'")->fetch();
-        if (!$tableExists) {
-            return; // Silently fail if table doesn't exist
-        }
-        
-        // Check which columns exist in activity_logs table
-        $columns = $db->query("SHOW COLUMNS FROM activity_logs")->fetchAll(PDO::FETCH_COLUMN);
-        $hasUserAgent = in_array('user_agent', $columns, true);
-        
-        // Build INSERT query based on available columns
-        $insertFields = ['user_id', 'action', 'entity_type', 'entity_id', 'description', 'ip_address'];
-        $insertValues = ['?', '?', '?', '?', '?', '?'];
-        
-        if ($hasUserAgent) {
-            $insertFields[] = 'user_agent';
-            $insertValues[] = '?';
-        }
-        
-        $sql = 'INSERT INTO activity_logs (' . implode(', ', $insertFields) . ') VALUES (' . implode(', ', $insertValues) . ')';
-        $stmt = $db->prepare($sql);
-        
-        $params = [
-            $user['id'] ?? null,
-            $action,
-            $entityType,
-            $entityId,
-            $description,
-            get_client_ip()
-        ];
-        
-        if ($hasUserAgent) {
-            $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
-            if ($userAgent && strlen($userAgent) > 255) {
-                $userAgent = substr($userAgent, 0, 255);
-            }
-            $params[] = $userAgent;
-        }
-        
-        $stmt->execute($params);
-    } catch (PDOException $e) {
-        // Log database errors for debugging
-        error_log('Failed to log activity (PDO): ' . $e->getMessage());
-        error_log('SQL State: ' . $e->getCode());
-        error_log('SQL Error Info: ' . print_r($e->errorInfo ?? [], true));
-    } catch (Throwable $e) {
-        // Log other errors for debugging
-        error_log('Failed to log activity: ' . $e->getMessage());
-        error_log('Stack trace: ' . $e->getTraceAsString());
-    }
+    $user = current_user();
+    $db = get_db();
+    
+    $stmt = $db->prepare(
+        'INSERT INTO activity_logs (user_id, action, entity_type, entity_id, description, ip_address, user_agent)
+         VALUES (?, ?, ?, ?, ?, ?, ?)'
+    );
+    
+    $stmt->execute([
+        $user['id'] ?? null,
+        $action,
+        $entityType,
+        $entityId,
+        $description,
+        get_client_ip(),
+        $_SERVER['HTTP_USER_AGENT'] ?? null
+    ]);
 }
 
 /**

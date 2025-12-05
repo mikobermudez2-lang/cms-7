@@ -72,11 +72,6 @@ function asset(string $path): string
  */
 function redirect(string $path): void
 {
-    // Prevent output before redirect
-    if (ob_get_level()) {
-        ob_end_clean();
-    }
-    
     if (preg_match('#^(?:[a-z][a-z0-9+\-.]*:)?//#i', $path)) {
         $target = $path;
     } elseif (str_starts_with($path, '/')) {
@@ -85,16 +80,8 @@ function redirect(string $path): void
         $target = $path;
     }
 
-    // Ensure no output has been sent
-    if (!headers_sent()) {
-        header("Location: {$target}", true, 302);
-        exit;
-    } else {
-        // Fallback if headers already sent
-        echo '<script>window.location.href = "' . htmlspecialchars($target, ENT_QUOTES, 'UTF-8') . '";</script>';
-        echo '<meta http-equiv="refresh" content="0;url=' . htmlspecialchars($target, ENT_QUOTES, 'UTF-8') . '">';
-        exit;
-    }
+    header("Location: {$target}");
+    exit;
 }
 
 /**

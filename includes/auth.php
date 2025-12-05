@@ -144,12 +144,12 @@ function require_admin(): void
 }
 
 /**
- * Require admin or staff role (for content management)
+ * Require admin or editor role
  */
-function require_admin_or_staff(): void
+function require_admin_or_editor(): void
 {
     $user = current_user();
-    if (!$user || !in_array($user['role'], ['admin', 'staff'], true)) {
+    if (!$user || !in_array($user['role'], ['admin', 'editor'], true)) {
         redirect('/admin/login.php');
     }
 }
@@ -166,12 +166,38 @@ function require_auth(): void
 }
 
 /**
+ * Alias for backward compatibility
+ */
+function require_admin_or_staff(): void
+{
+    require_auth();
+}
+
+/**
  * Check if current user is admin
  */
 function is_admin(): bool
 {
     $user = current_user();
     return $user && $user['role'] === 'admin';
+}
+
+/**
+ * Check if current user is editor
+ */
+function is_editor(): bool
+{
+    $user = current_user();
+    return $user && $user['role'] === 'editor';
+}
+
+/**
+ * Check if current user is author
+ */
+function is_author(): bool
+{
+    $user = current_user();
+    return $user && $user['role'] === 'author';
 }
 
 /**
@@ -188,7 +214,7 @@ function is_staff(): bool
  */
 function can_manage_posts(): bool
 {
-    return is_admin() || is_staff();
+    return is_admin() || is_editor() || is_author();
 }
 
 /**
@@ -196,7 +222,7 @@ function can_manage_posts(): bool
  */
 function can_manage_all_posts(): bool
 {
-    return is_admin() || is_staff();
+    return is_admin() || is_editor();
 }
 
 /**
@@ -225,43 +251,11 @@ function can_manage_settings(): bool
 function get_users(): array
 {
     $db = get_db();
-    
-    // Check which columns exist
-    $columns = $db->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_COLUMN);
-    $hasAvatar = in_array('avatar', $columns, true);
-    $hasBio = in_array('bio', $columns, true);
-    $hasPasswordChanged = in_array('password_changed_at', $columns, true);
-    
-    // Build query based on available columns
-    $selectFields = ['id', 'username', 'email', 'role', 'display_name', 'is_active', 'last_login_at', 'created_at'];
-    if ($hasAvatar) {
-        $selectFields[] = 'avatar';
-    }
-    if ($hasBio) {
-        $selectFields[] = 'bio';
-    }
-    if ($hasPasswordChanged) {
-        $selectFields[] = 'password_changed_at';
-    }
-    
-    $sql = 'SELECT ' . implode(', ', $selectFields) . ' FROM users ORDER BY created_at DESC';
-    $stmt = $db->query($sql);
-    $users = $stmt->fetchAll();
-    
-    // Ensure all expected fields exist (set to null if missing)
-    foreach ($users as &$user) {
-        if (!isset($user['avatar'])) {
-            $user['avatar'] = null;
-        }
-        if (!isset($user['bio'])) {
-            $user['bio'] = null;
-        }
-        if (!isset($user['password_changed_at'])) {
-            $user['password_changed_at'] = null;
-        }
-    }
-    
-    return $users;
+    $stmt = $db->query(
+        'SELECT id, username, email, role, display_name, avatar, is_active, last_login_at, created_at 
+         FROM users ORDER BY created_at DESC'
+    );
+    return $stmt->fetchAll();
 }
 
 /**
